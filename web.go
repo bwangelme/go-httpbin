@@ -4,13 +4,39 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/gorilla/handlers"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 
+	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
+
+var (
+	CWD          string
+	TEMPLATE_DIR string
+	STATIC_DIR string
+)
+
+func init() {
+	CWD, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		log.Fatalln(err)
+	}
+	TEMPLATE_DIR = filepath.Join(CWD, "templates")
+	STATIC_DIR = filepath.Join(CWD, "static")
+}
+
+func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	index_tmpl, err := template.ParseFiles(filepath.Join(TEMPLATE_DIR, "index.html"))
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	index_tmpl.Execute(w, nil)
+}
 
 func IPHandler(w http.ResponseWriter, r *http.Request) {
 	ip := w.Header().Get("X-Forwarded-For")
@@ -36,7 +62,7 @@ func IPHandler(w http.ResponseWriter, r *http.Request) {
 func Base64Handler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	if vars == nil {
-		log.Fatalln("INVALID encoded val")
+		log.Fatalln("INVALID path")
 		return
 	}
 
@@ -52,10 +78,12 @@ func Base64Handler(w http.ResponseWriter, r *http.Request) {
 
 func main() {
 	r := mux.NewRouter()
+	r.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
+
 	get_router := r.Methods([]string{"GET", "HEAD"}...).Subrouter()
 	get_post_router := r.Methods([]string{"GET", "HEAD", "POST"}...).Subrouter()
 
-
+	get_router.HandleFunc("/legacy", IndexHandler)
 	get_router.HandleFunc("/ip", IPHandler)
 	get_post_router.HandleFunc("/base64/{value}", Base64Handler)
 
