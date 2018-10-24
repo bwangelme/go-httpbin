@@ -17,7 +17,7 @@ import (
 var (
 	CWD          string
 	TEMPLATE_DIR string
-	STATIC_DIR string
+	STATIC_DIR   string
 )
 
 func init() {
@@ -30,12 +30,13 @@ func init() {
 }
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
-	index_tmpl, err := template.ParseFiles(filepath.Join(TEMPLATE_DIR, "index.html"))
+	index_tmpl, err := template.ParseGlob(filepath.Join(TEMPLATE_DIR, "*"))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	index_tmpl.Execute(w, nil)
+	return
 }
 
 func IPHandler(w http.ResponseWriter, r *http.Request) {
