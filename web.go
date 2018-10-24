@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"time"
 
 	"github.com/gorilla/handlers"
+
 	"github.com/gorilla/mux"
 )
 
@@ -77,17 +82,50 @@ func Base64Handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(decodedVal))
 }
 
-func main() {
-	r := mux.NewRouter()
-	r.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
-
+func registerHandler() http.Handler {
+	var r = mux.NewRouter()
 	get_router := r.Methods([]string{"GET", "HEAD"}...).Subrouter()
 	get_post_router := r.Methods([]string{"GET", "HEAD", "POST"}...).Subrouter()
 
+	r.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
 	get_router.HandleFunc("/legacy", IndexHandler)
 	get_router.HandleFunc("/ip", IPHandler)
 	get_post_router.HandleFunc("/base64/{value}", Base64Handler)
 
-	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
-	log.Fatal(http.ListenAndServe("localhost:8080", loggedRouter))
+	handler := handlers.LoggingHandler(os.Stdout, r)
+
+	return handler
+}
+
+func main() {
+	var handler = registerHandler()
+	var wait time.Duration
+	flag.DurationVar(&wait, "shutdownTime", 15*time.Second, "服务器被关闭时的等待时间")
+	flag.Parse()
+
+	srv := &http.Server{
+		Addr:         "localhost:8080",
+		ReadTimeout:  15 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  30 * time.Second,
+		Handler:      handler,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil {
+			log.Println(err)
+		}
+	}()
+
+	c := make(chan os.Signal)
+	signal.Notify(c, os.Interrupt)
+	<-c
+
+	ctx, cancel := context.WithTimeout(context.Background(), wait)
+	defer cancel()
+
+	srv.Shutdown(ctx)
+	log.Println("Graceful shutdown the server")
+
+	os.Exit(0)
 }
