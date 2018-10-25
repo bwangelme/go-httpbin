@@ -105,7 +105,7 @@ func registerMiddleware(router *mux.Router) {
 
 func main() {
 	var r = mux.NewRouter()
-	registerMiddleware(r)
+	//registerMiddleware(r)
 	var handler = registerHandle(r)
 	var wait time.Duration
 	flag.DurationVar(&wait, "shutdownTime", 15*time.Second, "服务器被关闭时的等待时间")
