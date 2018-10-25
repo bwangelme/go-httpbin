@@ -14,6 +14,8 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/bwangelme/httpbin/middlewares"
+
 	"github.com/gorilla/handlers"
 
 	"github.com/gorilla/mux"
@@ -82,8 +84,7 @@ func Base64Handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, string(decodedVal))
 }
 
-func registerHandler() http.Handler {
-	var r = mux.NewRouter()
+func registerHandle(r *mux.Router) http.Handler {
 	get_router := r.Methods([]string{"GET", "HEAD"}...).Subrouter()
 	get_post_router := r.Methods([]string{"GET", "HEAD", "POST"}...).Subrouter()
 
@@ -97,8 +98,15 @@ func registerHandler() http.Handler {
 	return handler
 }
 
+func registerMiddleware(router *mux.Router) {
+	awm := middlewares.NewAuthMiddleware()
+	router.Use(awm.Middleware)
+}
+
 func main() {
-	var handler = registerHandler()
+	var r = mux.NewRouter()
+	registerMiddleware(r)
+	var handler = registerHandle(r)
 	var wait time.Duration
 	flag.DurationVar(&wait, "shutdownTime", 15*time.Second, "服务器被关闭时的等待时间")
 	flag.Parse()
