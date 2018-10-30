@@ -1,6 +1,7 @@
 module github.com/bwangelme/httpbin
 
 require (
+	github.com/google/uuid v1.0.0
 	github.com/gorilla/handlers v1.4.0
 	github.com/gorilla/mux v1.6.2
 	github.com/hoisie/web v0.1.1-0.20160809141353-a498c022b2c0
