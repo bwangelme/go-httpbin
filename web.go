@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"math/rand"
 	"net/http"
@@ -229,6 +230,68 @@ func BytesHandler(w http.ResponseWriter, r *http.Request) {
 	return
 }
 
+func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		log.Fatalln("Excepted http.ResponseWriter to be a http.Flusher")
+	}
+
+	vars := mux.Vars(r)
+	if vars == nil {
+		log.Println("INVALID PATH")
+		return
+	}
+
+	chunkSizeRaw := r.FormValue("chunk-size")
+	chunkSize := int64(10 * 1024)
+	if chunkSizeRaw != "" {
+		chunkSize, err := strconv.ParseInt(chunkSizeRaw, 10, 0)
+		if err != nil {
+			log.Printf("INVALID chunk size %s: %s", r.FormValue("chunk-size"), err)
+		} else if chunkSize > 10 * 1024 {
+			chunkSize = 10 * 1024
+		}
+	}
+
+	n, err := strconv.ParseInt(vars["n"], 10, 64)
+	if err != nil {
+		log.Println("INVALID path component", vars["n"], err)
+		n = 100 * chunkSize
+	} else if n > 100 * chunkSize {
+		n = 100 * chunkSize
+	}
+
+	filename := r.FormValue("filename")
+	if filename == "" {
+		filename = "data"
+	}
+
+	randGenerator := rand.New(rand.NewSource(1))
+	seedRaw := r.FormValue("seed")
+	if seedRaw != "" {
+		seed, err := strconv.ParseInt(seedRaw, 10, 64)
+		if err == nil {
+			randGenerator = rand.New(rand.NewSource(seed))
+		} else {
+			log.Printf("INVALID SEED %s %s", r.Form.Get("seed"), err)
+		}
+	}
+
+	w.Header().Set("Content-Disposition", fmt.Sprintf("attachment; filename=%s", filename))
+	w.Header().Set("Content-Type", "application/octet-stream")
+	for n > 0 {
+		writtedBytes := chunkSize
+		if n < chunkSize {
+			writtedBytes = n
+		}
+
+		io.CopyN(w, randGenerator, writtedBytes)
+		flusher.Flush()
+		n -= writtedBytes
+		log.Println("Write datas", writtedBytes)
+	}
+}
+
 /*
  * ====================================
  * WebApp Init
@@ -249,6 +312,7 @@ func registerHandle(r *mux.Router) http.Handler {
 
 	get_post_router.HandleFunc("/base64/{value}", Base64Handler)
 	get_post_router.HandleFunc("/bytes/{n}", BytesHandler)
+	get_post_router.HandleFunc("/stream-bytes/{n}", StreamBytesHandler)
 
 	handler := handlers.LoggingHandler(os.Stdout, r)
 
@@ -256,6 +320,7 @@ func registerHandle(r *mux.Router) http.Handler {
 }
 
 func registerMiddleware(router *mux.Router) {
+	// TODO: 实现 JWT 认证
 	//awm := middlewares.NewAuthMiddleware()
 	//router.Use(awm.Middleware)
 	router.Use(middlewares.JSONMiddleware)
@@ -277,14 +342,19 @@ func main() {
 		Handler:      handler,
 	}
 
+	c := make(chan os.Signal)
 	go func() {
 		log.Println("Start server on", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil {
-			log.Println(err)
+			if err == http.ErrServerClosed {
+				log.Println("Graceful shutdown the server")
+				c <- os.Interrupt
+			} else {
+				log.Fatalln(err)
+			}
 		}
 	}()
 
-	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt)
 	<-c
 
@@ -292,7 +362,7 @@ func main() {
 	defer cancel()
 
 	srv.Shutdown(ctx)
-	log.Println("Graceful shutdown the server")
+	<-c
 
 	os.Exit(0)
 }

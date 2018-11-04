@@ -20,3 +20,4 @@
 /Godeps/
 
 httpbin
+tmp.go
