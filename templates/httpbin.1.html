@@ -27,6 +27,13 @@
             <li><a href="/get" data-bare-link="true"><code>/get</code></a> Returns GET data.</li>
             <li><a href="/base64/aGVsbG8gd29ybGQNCg=="><code>/base64/:value</code></a> Decodes base64url-encoded string.
             </li>
+            <li><a href="/bytes/1024"><code>/bytes/:n</code></a> Generates <em>n</em> random bytes of
+                binary data, accepts optional <em>seed</em> integer parameter.
+            </li>
+            <li><a href="/stream-bytes/20925?filename=data.bin"><code>/stream-bytes/:n</code></a> Streams <em>n</em> random bytes of
+                binary data in chunked encoding, accepts optional <em>seed</em>, <em>filename</em> and <em>chunk_size</em> integer
+                parameters.
+            </li>
 
         </ul>
     </div>
