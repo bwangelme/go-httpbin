@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -28,12 +27,13 @@ var (
 	CWD          string
 	TEMPLATE_DIR string
 	STATIC_DIR   string
+	logger       = NewWebLogger()
 )
 
 func init() {
 	CWD, err := filepath.Abs(filepath.Dir(os.Args[0]))
 	if err != nil {
-		log.Fatalln(err)
+		logger.Fatalln(err)
 	}
 	TEMPLATE_DIR = filepath.Join(CWD, "templates")
 	STATIC_DIR = filepath.Join(CWD, "static")
@@ -83,7 +83,7 @@ func getRequestScheme(r *http.Request) string {
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	indexTmpl, err := template.ParseGlob(filepath.Join(TEMPLATE_DIR, "*"))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 	indexTmpl.ExecuteTemplate(w, "index.html", nil)
@@ -99,8 +99,7 @@ func IPHandler(w http.ResponseWriter, r *http.Request) {
 		IP: ip,
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Println(err)
+		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 	w.Write(js)
@@ -109,14 +108,13 @@ func IPHandler(w http.ResponseWriter, r *http.Request) {
 func Base64Handler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	if vars == nil {
-		log.Fatalln("INVALID path")
+		logger.Fatalln("INVALID path")
 		return
 	}
 
 	decodedVal, err := base64.StdEncoding.DecodeString(vars["value"])
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Println(err)
+		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 
@@ -132,8 +130,7 @@ func UUIDHandler(w http.ResponseWriter, r *http.Request) {
 		UUID: uuidVal.String(),
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Println(err)
+		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 
@@ -147,8 +144,7 @@ func UserAgentHandler(w http.ResponseWriter, r *http.Request) {
 		UserAgent: r.UserAgent(),
 	})
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Println(err)
+		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 
@@ -160,8 +156,7 @@ func HeadersHandler(w http.ResponseWriter, r *http.Request) {
 
 	js, err := json.Marshal(headers)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Println(err)
+		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 
@@ -171,8 +166,7 @@ func HeadersHandler(w http.ResponseWriter, r *http.Request) {
 func GetHandler(w http.ResponseWriter, r *http.Request) {
 	values, err := url.ParseQuery(r.URL.RawQuery)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Println(err)
+		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 	queryArgs := make(map[string]string)
@@ -189,8 +183,7 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 
 	js, err := json.Marshal(result)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		log.Println(err)
+		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 
@@ -200,13 +193,13 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 func BytesHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	if vars == nil {
-		log.Println("INVALID PATH")
+		logger.Println("INVALID PATH")
 		return
 	}
 
 	n, err := strconv.ParseInt(vars["n"], 10, 64)
 	if err != nil {
-		log.Println("INVALID path component", err)
+		logger.Println("INVALID path component", err)
 		return
 	}
 	if n > 100*1024 {
@@ -220,7 +213,7 @@ func BytesHandler(w http.ResponseWriter, r *http.Request) {
 		r := rand.New(rand.NewSource(seed))
 		r.Read(data)
 	} else {
-		log.Printf("INVALID SEED %s %s", r.Form.Get("seed"), err)
+		logger.Printf("INVALID SEED %s %s", r.Form.Get("seed"), err)
 		rand.Read(data)
 	}
 
@@ -233,12 +226,12 @@ func BytesHandler(w http.ResponseWriter, r *http.Request) {
 func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
 	flusher, ok := w.(http.Flusher)
 	if !ok {
-		log.Fatalln("Excepted http.ResponseWriter to be a http.Flusher")
+		logger.Fatalln("Excepted http.ResponseWriter to be a http.Flusher")
 	}
 
 	vars := mux.Vars(r)
 	if vars == nil {
-		log.Println("INVALID PATH")
+		logger.Println("INVALID PATH")
 		return
 	}
 
@@ -247,17 +240,17 @@ func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
 	if chunkSizeRaw != "" {
 		chunkSize, err := strconv.ParseInt(chunkSizeRaw, 10, 0)
 		if err != nil {
-			log.Printf("INVALID chunk size %s: %s", r.FormValue("chunk-size"), err)
-		} else if chunkSize > 10 * 1024 {
+			logger.Printf("INVALID chunk size %s: %s", r.FormValue("chunk-size"), err)
+		} else if chunkSize > 10*1024 {
 			chunkSize = 10 * 1024
 		}
 	}
 
 	n, err := strconv.ParseInt(vars["n"], 10, 64)
 	if err != nil {
-		log.Println("INVALID path component", vars["n"], err)
+		logger.Println("INVALID path component", vars["n"], err)
 		n = 100 * chunkSize
-	} else if n > 100 * chunkSize {
+	} else if n > 100*chunkSize {
 		n = 100 * chunkSize
 	}
 
@@ -273,7 +266,7 @@ func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
 		if err == nil {
 			randGenerator = rand.New(rand.NewSource(seed))
 		} else {
-			log.Printf("INVALID SEED %s %s", r.Form.Get("seed"), err)
+			logger.Printf("INVALID SEED %s %s", r.Form.Get("seed"), err)
 		}
 	}
 
@@ -288,7 +281,7 @@ func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
 		io.CopyN(w, randGenerator, writtedBytes)
 		flusher.Flush()
 		n -= writtedBytes
-		log.Println("Write datas", writtedBytes)
+		logger.Println("Write datas", writtedBytes)
 	}
 }
 
@@ -344,13 +337,13 @@ func main() {
 
 	c := make(chan os.Signal)
 	go func() {
-		log.Println("Start server on", srv.Addr)
+		logger.Println("Start server on", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil {
 			if err == http.ErrServerClosed {
-				log.Println("Graceful shutdown the server")
+				logger.Println("Graceful shutdown the server")
 				c <- os.Interrupt
 			} else {
-				log.Fatalln(err)
+				logger.Fatalln(err)
 			}
 		}
 	}()
