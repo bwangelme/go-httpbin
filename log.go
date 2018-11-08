@@ -9,7 +9,7 @@ import (
 
 type WebLogger struct {
 	*log.Logger
-	req    *http.Request
+	req *http.Request
 }
 
 func NewWebLogger() *WebLogger {

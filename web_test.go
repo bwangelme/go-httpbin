@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/gorilla/mux"
 )
 
 func TestIPHandler(t *testing.T) {
@@ -30,7 +31,6 @@ func TestIPHandler(t *testing.T) {
 		log.Fatalf("Unexcepted body %s, excepted body %s\n", actualBody, expectedBody)
 	}
 }
-
 
 func TestBase64Handler(t *testing.T) {
 	originTest := "hello world\n"
@@ -56,4 +56,8 @@ func TestBase64Handler(t *testing.T) {
 	if originTest != actualBody {
 		log.Fatalf("Unexcepted body %s, excepted body %s\n", actualBody, originTest)
 	}
+}
+
+func TestImgHandler(t *testing.T) {
+	// TODO: 测试 /image 接口，判断返回的图片类型
 }
