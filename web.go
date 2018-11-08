@@ -15,6 +15,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/bwangelme/httpbin/middlewares"
@@ -37,41 +38,6 @@ func init() {
 	}
 	TEMPLATE_DIR = filepath.Join(CWD, "templates")
 	STATIC_DIR = filepath.Join(CWD, "static")
-}
-
-/*
- * ====================================
- * Helper Func
- * ====================================
- */
-
-func getHeadersMap(header http.Header) map[string]string {
-	headers := make(map[string]string)
-
-	for k, v := range header {
-		if len(v) > 0 {
-			headers[k] = v[0]
-		}
-	}
-
-	return headers
-}
-
-func getPeerIP(r *http.Request) string {
-	ip := r.Header.Get("X-Forwarded-For")
-	if len(ip) == 0 {
-		ip = r.RemoteAddr
-	}
-
-	return ip
-}
-
-func getRequestScheme(r *http.Request) string {
-	if r.TLS != nil {
-		return "https"
-	} else {
-		return "http"
-	}
 }
 
 /*
@@ -285,6 +251,79 @@ func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func ImgHandler(w http.ResponseWriter, r *http.Request) {
+	acceptHeader := r.Header.Get("accept")
+
+	if acceptHeader == "" {
+		// TODO 如何区分 accept 为""，和没传入的情况
+		ImgPngHandler(w, r)
+		return
+	}
+
+	if strings.Contains(acceptHeader, "image/webp") {
+		ImgWebpHandler(w, r)
+		return
+	} else if strings.Contains(acceptHeader, "image/svg+xml") {
+		ImgSVGHandler(w, r)
+		return
+	} else if strings.Contains(acceptHeader, "image/jpeg") {
+		ImgJPEGHandler(w, r)
+		return
+	} else if strings.Contains(acceptHeader, "image/png") || strings.Contains(acceptHeader, "image/*") {
+		ImgPngHandler(w, r)
+		return
+	} else {
+		http.Error(w, "Invalid Accept", http.StatusNotAcceptable)
+		return
+	}
+
+}
+
+func ImgPngHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := Resource(filepath.Join("images", "pig_icon.png"))
+	if err != nil {
+		logger.InternalErrorPrint(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/png")
+	w.Write(data)
+}
+
+func ImgJPEGHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := Resource(filepath.Join("images", "jackal.jpg"))
+	if err != nil {
+		logger.InternalErrorPrint(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Write(data)
+}
+
+func ImgWebpHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := Resource(filepath.Join("images", "wolf_1.webp"))
+	if err != nil {
+		logger.InternalErrorPrint(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/webp")
+	w.Write(data)
+}
+
+func ImgSVGHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := Resource(filepath.Join("images", "svg_logo.svg"))
+	if err != nil {
+		logger.InternalErrorPrint(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "image/svg+xml")
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
+	w.Write(data)
+}
+
 /*
  * ====================================
  * WebApp Init
@@ -292,20 +331,25 @@ func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
  */
 
 func registerHandle(r *mux.Router) http.Handler {
-	get_router := r.Methods([]string{"GET", "HEAD"}...).Subrouter()
-	get_post_router := r.Methods([]string{"GET", "HEAD", "POST"}...).Subrouter()
+	getRouter := r.Methods([]string{"GET", "HEAD"}...).Subrouter()
+	normalRouter := r.NewRoute().Subrouter()
 
 	r.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
-	get_router.HandleFunc("/legacy", IndexHandler)
-	get_router.HandleFunc("/ip", IPHandler)
-	get_router.HandleFunc("/uuid", UUIDHandler)
-	get_router.HandleFunc("/user-agent", UserAgentHandler)
-	get_router.HandleFunc("/headers", HeadersHandler)
-	get_router.HandleFunc("/get", GetHandler)
+	getRouter.HandleFunc("/legacy", IndexHandler)
+	getRouter.HandleFunc("/ip", IPHandler)
+	getRouter.HandleFunc("/uuid", UUIDHandler)
+	getRouter.HandleFunc("/user-agent", UserAgentHandler)
+	getRouter.HandleFunc("/headers", HeadersHandler)
+	getRouter.HandleFunc("/get", GetHandler)
 
-	get_post_router.HandleFunc("/base64/{value}", Base64Handler)
-	get_post_router.HandleFunc("/bytes/{n}", BytesHandler)
-	get_post_router.HandleFunc("/stream-bytes/{n}", StreamBytesHandler)
+	normalRouter.HandleFunc("/image", ImgHandler)
+	normalRouter.HandleFunc("/image/png", ImgPngHandler)
+	normalRouter.HandleFunc("/image/jpeg", ImgJPEGHandler)
+	normalRouter.HandleFunc("/image/webp", ImgWebpHandler)
+	normalRouter.HandleFunc("/image/svg", ImgSVGHandler)
+	normalRouter.HandleFunc("/base64/{value}", Base64Handler)
+	normalRouter.HandleFunc("/bytes/{n}", BytesHandler)
+	normalRouter.HandleFunc("/stream-bytes/{n}", StreamBytesHandler)
 
 	handler := handlers.LoggingHandler(os.Stdout, r)
 
