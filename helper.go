@@ -5,11 +5,22 @@ package main
  */
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 )
+
+func checkBasicAuth(r *http.Request, user string, passwd string) bool{
+	User, Passwd, ok := r.BasicAuth()
+	fmt.Println(User, Passwd, ok)
+	if !ok {
+		return false
+	}
+
+	return (User == user && Passwd == passwd)
+}
 
 func getHeadersMap(header http.Header) map[string]string {
 	headers := make(map[string]string)

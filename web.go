@@ -255,7 +255,6 @@ func ImgHandler(w http.ResponseWriter, r *http.Request) {
 	acceptHeader := r.Header.Get("accept")
 
 	if acceptHeader == "" {
-		// TODO 如何区分 accept 为""，和没传入的情况
 		ImgPngHandler(w, r)
 		return
 	}
@@ -324,6 +323,32 @@ func ImgSVGHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func BasicAuthHandler(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	if vars == nil {
+		logger.Fatalln("INVALID path")
+		return
+	}
+	user := vars["user"]
+	passwd := vars["passwd"]
+
+	if !checkBasicAuth(r, user, passwd) {
+		w.Header().Set("WWW-Authenticate", `Basic realm="Fake Realm"`)
+		http.Error(w, "Incorrect User or Password", http.StatusUnauthorized)
+		return
+	}
+
+	js, err := json.Marshal(map[string]interface{} {
+		"authenticated": true,
+		"user": user,
+	})
+	if err != nil {
+		logger.Fatalln(err)
+	}
+
+	fmt.Fprint(w, string(js))
+}
+
 /*
  * ====================================
  * WebApp Init
@@ -350,6 +375,8 @@ func registerHandle(r *mux.Router) http.Handler {
 	normalRouter.HandleFunc("/base64/{value}", Base64Handler)
 	normalRouter.HandleFunc("/bytes/{n}", BytesHandler)
 	normalRouter.HandleFunc("/stream-bytes/{n}", StreamBytesHandler)
+
+	normalRouter.HandleFunc("/basic-auth/{user}/{passwd}", BasicAuthHandler)
 
 	handler := handlers.LoggingHandler(os.Stdout, r)
 
