@@ -6,11 +6,48 @@
             httpbin(1): HTTP Request & Response Service
         </h1>
 
-        <h3>ENDPOINTS</h3>
+        <h2>ENDPOINTS</h2>
+
+        <h3>
+            <a href="/legancy"><code>/</code></a>This page.
+        </h3>
+
+
+        <h3>HTTP Methods</h3>
         <ul>
-            <li>
-                <a href="/legancy"><code>/</code></a> This page.
+            <li><a href="/delete" data-bare-link="true"><code>- /delete</code></a> Returns GET data.</li>
+            <li><a href="/get" data-bare-link="true"><code>/get</code></a> Returns GET data.</li>
+            <li><a href="" data-bare-link="true"><code>- /patch</code></a> Returns GET data.</li>
+            <li><a href="" data-bare-link="true"><code>- /post</code></a> Returns GET data.</li>
+            <li><a href="" data-bare-link="true"><code>- /put</code></a> Returns GET data.</li>
+        </ul>
+
+        <h3>Auth</h3>
+        <ul>
+            <li><a href="/basic-auth/user/passwd" data-bare-link="true"><code>/basic-auth/{user}/{passwd}</code></a> Challenges HTTPBasic Auth</li>
+            <li><a href="/basic-auth/user/passwd" data-bare-link="true"><code>- /bearer</code></a> Challenges HTTPBasic Auth</li>
+            <li><a href="/basic-auth/user/passwd" data-bare-link="true"><code>- /digest-auth/{qop}/{user}/{passwd}</code></a> Challenges HTTPBasic Auth</li>
+            <li><a href="/basic-auth/user/passwd" data-bare-link="true"><code>- /digest-auth/{qop}/{user}/{passwd}/{algorithm}</code></a> Challenges HTTPBasic Auth</li>
+            <li><a href="/basic-auth/user/passwd" data-bare-link="true"><code>- /hidden-basic-auth/{user}/{passwd}</code></a> Challenges HTTPBasic Auth</li>
+        </ul>
+
+        <h3>Status Code</h3>
+        <ul>
+            <li><a href=""><code>- /status/{code}</code></a></li>
+        </ul>
+
+        <h3>Images</h3>
+        <ul>
+            <li><a href="/image"><code>/image</code></a> Returns page containing an image based on sent Accept header.
             </li>
+            <li><a href="/image/png"><code>/image/png</code></a> Returns a PNG image.</li>
+            <li><a href="/image/jpeg"><code>/image/jpeg</code></a> Returns a JPEG image.</li>
+            <li><a href="/image/webp"><code>/image/webp</code></a> Returns a WEBP image.</li>
+            <li><a href="/image/svg"><code>/image/svg</code></a> Returns a SVG image.</li>
+        </ul>
+
+
+        <ul>
             <li>
                 <a href="/ip"><code>/ip</code></a> Returns Origin IP.
             </li>
@@ -24,21 +61,17 @@
             <li><a href="/headers"><code>/headers</code></a> Returns header
                 dict.
             </li>
-            <li><a href="/get" data-bare-link="true"><code>/get</code></a> Returns GET data.</li>
             <li><a href="/base64/aGVsbG8gd29ybGQNCg=="><code>/base64/:value</code></a> Decodes base64url-encoded string.
             </li>
             <li><a href="/bytes/1024"><code>/bytes/:n</code></a> Generates <em>n</em> random bytes of
                 binary data, accepts optional <em>seed</em> integer parameter.
             </li>
-            <li><a href="/stream-bytes/20925?filename=data.bin"><code>/stream-bytes/:n</code></a> Streams <em>n</em> random bytes of
-                binary data in chunked encoding, accepts optional <em>seed</em>, <em>filename</em> and <em>chunk_size</em> integer
+            <li><a href="/stream-bytes/20925?filename=data.bin"><code>/stream-bytes/:n</code></a> Streams <em>n</em>
+                random bytes of
+                binary data in chunked encoding, accepts optional <em>seed</em>, <em>filename</em> and
+                <em>chunk_size</em> integer
                 parameters.
             </li>
-            <li><a href="/image"><code>/image</code></a> Returns page containing an image based on sent Accept header.</li>
-            <li><a href="/image/png"><code>/image/png</code></a> Returns a PNG image.</li>
-            <li><a href="/image/jpeg"><code>/image/jpeg</code></a> Returns a JPEG image.</li>
-            <li><a href="/image/webp"><code>/image/webp</code></a> Returns a WEBP image.</li>
-            <li><a href="/image/svg"><code>/image/svg</code></a> Returns a SVG image.</li>
 
         </ul>
     </div>
