@@ -7,7 +7,20 @@ type UrlItem struct {
 	Desc   string
 }
 
+var URL_GROUP_CONFIG = []string{
+	"This Page",
+	"HTTP Methods",
+	"Auth",
+	"Status Code",
+	"Images",
+	"Request inspection",
+	"Dynamic data",
+}
+
 var URL_CONFIG = map[string][]UrlItem{
+	"This Page": {
+		UrlItem{"GET", "/", "/", ""},
+	},
 	"HTTP Methods": {
 		UrlItem{"GET", "- /delete", "#", "Returns GET data."},
 		UrlItem{"GET", "/get", "/get", "Returns GET data."},

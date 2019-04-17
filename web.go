@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"html/template"
 	"io"
-	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -60,9 +59,11 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err = indexTmpl.ExecuteTemplate(w, "index.html", map[string]interface{}{
 		"URL_CONFIG": URL_CONFIG,
+		"URL_GROUP_CONFIG": URL_GROUP_CONFIG,
 	})
 	if err != nil {
-		log.Println(err)
+		logger.InternalErrorPrint(w, err.Error())
+		return
 	}
 	return
 }
