@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"html/template"
 	"io"
+	"log"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -40,6 +41,8 @@ func init() {
 	STATIC_DIR = filepath.Join(CWD, "static")
 }
 
+func unescaped (x string) interface{} { return template.HTML(x) }
+
 /*
  * ====================================
  * Request Handlers
@@ -47,12 +50,20 @@ func init() {
  */
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
+	// TODO: 将模板渲染函数统一起来
 	indexTmpl, err := template.ParseGlob(filepath.Join(TEMPLATE_DIR, "*"))
+
+	indexTmpl.Funcs(template.FuncMap{"html": unescaped})
 	if err != nil {
 		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
-	indexTmpl.ExecuteTemplate(w, "index.html", nil)
+	err = indexTmpl.ExecuteTemplate(w, "index.html", map[string]interface{}{
+		"URL_CONFIG": URL_CONFIG,
+	})
+	if err != nil {
+		log.Println(err)
+	}
 	return
 }
 
@@ -338,9 +349,9 @@ func BasicAuthHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	js, err := json.Marshal(map[string]interface{} {
+	js, err := json.Marshal(map[string]interface{}{
 		"authenticated": true,
-		"user": user,
+		"user":          user,
 	})
 	if err != nil {
 		logger.Fatalln(err)
