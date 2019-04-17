@@ -8,21 +8,19 @@
 
         <h2>ENDPOINTS</h2>
 
-        <h3>
-            <a href="/legancy"><code>/</code></a>This page.
-        </h3>
-
-        {{ range $key, $config := .URL_CONFIG }}
+        {{ range $key := .URL_GROUP_CONFIG }}
             <h3>{{ $key }}</h3>
             <ul>
-            {{ range $urlItem := $config }}
-                <li>
-                    <code>{{ $urlItem.Method }}</code>
-                    <a href={{ $urlItem.Url }} data-bare-link="true">
-                        <code>{{ $urlItem.Name }}</code>
-                    </a> {{ $urlItem.Desc | html }}
-                </li>
-            {{ end}}
+            {{ with (index $.URL_CONFIG $key) }}
+                {{ range . }}
+                    <li>
+                        <code>{{ .Method }}</code>
+                        <a href={{ .Url }} data-bare-link="true">
+                            <code>{{ .Name }}</code>
+                        </a> {{ .Desc | html }}
+                    </li>
+                {{ end }}
+            {{ end }}
             </ul>
         {{ end }}
     </div>
