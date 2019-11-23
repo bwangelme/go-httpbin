@@ -18,7 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/bwangelme/httpbin/middlewares"
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -367,11 +366,20 @@ func BasicAuthHandler(w http.ResponseWriter, r *http.Request) {
  * ====================================
  */
 
-func registerHandle(r *mux.Router) http.Handler {
-	getRouter := r.Methods([]string{"GET", "HEAD"}...).Subrouter()
-	normalRouter := r.NewRoute().Subrouter()
+func GetMux() *mux.Router {
+	var router = mux.NewRouter()
 
-	r.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
+	// 注册中间件
+	registerMiddleware(router)
+
+	// 注册静态文件
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static/swaggerui/dist")))
+	router.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
+
+	getRouter := router.Methods([]string{"GET", "HEAD"}...).Subrouter()
+	normalRouter := router.NewRoute().Subrouter()
+
+	// 注册API接口
 	getRouter.HandleFunc("/legacy", IndexHandler)
 	getRouter.HandleFunc("/ip", IPHandler)
 	getRouter.HandleFunc("/uuid", UUIDHandler)
@@ -390,22 +398,20 @@ func registerHandle(r *mux.Router) http.Handler {
 
 	normalRouter.HandleFunc("/basic-auth/{user}/{passwd}", BasicAuthHandler)
 
-	handler := handlers.LoggingHandler(os.Stdout, r)
-
-	return handler
+	return router
 }
 
 func registerMiddleware(router *mux.Router) {
 	// TODO: 实现 JWT 认证
 	//awm := middlewares.NewAuthMiddleware()
 	//router.Use(awm.Middleware)
-	router.Use(middlewares.JSONMiddleware)
+	//router.Use(middlewares.JSONMiddleware)
 }
 
 func main() {
-	var r = mux.NewRouter()
-	registerMiddleware(r)
-	var handler = registerHandle(r)
+	var router = GetMux()
+	handler := handlers.LoggingHandler(os.Stdout, router)
+
 	var wait time.Duration
 	flag.DurationVar(&wait, "shutdownTime", 15*time.Second, "服务器被关闭时的等待时间")
 	flag.Parse()
