@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bwangelme/httpbin/middlewares"
 	"github.com/google/uuid"
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -368,25 +369,18 @@ func BasicAuthHandler(w http.ResponseWriter, r *http.Request) {
 
 func GetMux() *mux.Router {
 	var router = mux.NewRouter()
+	var normalRouter = router.NewRoute().Subrouter()
 
 	// 注册中间件
-	registerMiddleware(router)
-
-	// 注册静态文件
-	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static/swaggerui/dist")))
-	router.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
-
-	getRouter := router.Methods([]string{"GET", "HEAD"}...).Subrouter()
-	normalRouter := router.NewRoute().Subrouter()
+	registerMiddleware(normalRouter)
 
 	// 注册API接口
-	getRouter.HandleFunc("/legacy", IndexHandler)
-	getRouter.HandleFunc("/ip", IPHandler)
-	getRouter.HandleFunc("/uuid", UUIDHandler)
-	getRouter.HandleFunc("/user-agent", UserAgentHandler)
-	getRouter.HandleFunc("/headers", HeadersHandler)
-	getRouter.HandleFunc("/get", GetHandler)
-
+	normalRouter.HandleFunc("/legacy", IndexHandler)
+	normalRouter.HandleFunc("/ip", IPHandler)
+	normalRouter.HandleFunc("/uuid", UUIDHandler)
+	normalRouter.HandleFunc("/user-agent", UserAgentHandler)
+	normalRouter.HandleFunc("/headers", HeadersHandler)
+	normalRouter.HandleFunc("/get", GetHandler)
 	normalRouter.HandleFunc("/image", ImgHandler)
 	normalRouter.HandleFunc("/image/png", ImgPngHandler)
 	normalRouter.HandleFunc("/image/jpeg", ImgJPEGHandler)
@@ -395,8 +389,11 @@ func GetMux() *mux.Router {
 	normalRouter.HandleFunc("/base64/{value}", Base64Handler)
 	normalRouter.HandleFunc("/bytes/{n}", BytesHandler)
 	normalRouter.HandleFunc("/stream-bytes/{n}", StreamBytesHandler)
-
 	normalRouter.HandleFunc("/basic-auth/{user}/{passwd}", BasicAuthHandler)
+
+	// 注册静态文件
+	router.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
+	router.PathPrefix("/").Handler(http.FileServer(http.Dir("./static/swaggerui/dist")))
 
 	return router
 }
@@ -405,7 +402,7 @@ func registerMiddleware(router *mux.Router) {
 	// TODO: 实现 JWT 认证
 	//awm := middlewares.NewAuthMiddleware()
 	//router.Use(awm.Middleware)
-	//router.Use(middlewares.JSONMiddleware)
+	router.Use(middlewares.JSONMiddleware)
 }
 
 func main() {
