@@ -1,0 +1,20 @@
+swagger: "2.0"
+info:
+  title: httpbin.org
+  description: A simple HTTP Request & Response Service.
+  version: 0.0.1
+host: localhost:8080
+schemes:
+  http
+basePath: /
+produces:
+  application/json
+paths:
+  /get:
+    get:
+      summary: The Requests Parameters
+      tags:
+        - HTTP Methods
+      responses:
+        "200":
+          description: The request parameters
