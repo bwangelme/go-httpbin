@@ -1,26 +1,19 @@
-package main
+package httpbin
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/json"
-	"flag"
 	"fmt"
 	"html/template"
 	"io"
 	"math/rand"
 	"net/http"
-	"net/url"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"strconv"
-	"strings"
-	"time"
 
-	"github.com/bwangelme/httpbin/middlewares"
+	"github.com/bwangelme/go-httpbin/middlewares"
 	"github.com/google/uuid"
-	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 )
 
@@ -40,7 +33,7 @@ func init() {
 	STATIC_DIR = filepath.Join(CWD, "static")
 }
 
-func unescaped (x string) interface{} { return template.HTML(x) }
+func unescaped(x string) interface{} { return template.HTML(x) }
 
 /*
  * ====================================
@@ -58,7 +51,7 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	err = indexTmpl.ExecuteTemplate(w, "index.html", map[string]interface{}{
-		"URL_CONFIG": URL_CONFIG,
+		"URL_CONFIG":       URL_CONFIG,
 		"URL_GROUP_CONFIG": URL_GROUP_CONFIG,
 	})
 	if err != nil {
@@ -142,22 +135,41 @@ func HeadersHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
-	values, err := url.ParseQuery(r.URL.RawQuery)
+	// TODO 写一个功能函数，统一获取相应内容，类似于 py 中的 get_dict
+	result := make(map[string]interface{})
+	queryArgs, err := getQueryArgs(r)
 	if err != nil {
 		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
-	queryArgs := make(map[string]string)
-	for k, _ := range values {
-		queryArgs[k] = values.Get(k)
-	}
-
-	result := make(map[string]interface{})
 
 	result["origin"] = getPeerIP(r)
 	result["url"] = fmt.Sprintf("%s://%s%s", getRequestScheme(r), r.Host, r.URL.RequestURI())
 	result["headers"] = getHeadersMap(r.Header)
 	result["args"] = queryArgs
+
+	// TODO 中间件统一写返回值的代码
+	js, err := json.Marshal(result)
+	if err != nil {
+		logger.InternalErrorPrint(w, err.Error())
+		return
+	}
+
+	fmt.Fprintf(w, string(js))
+}
+
+func DeleteHandler(w http.ResponseWriter, r *http.Request) {
+	result := make(map[string]interface{})
+	queryArgs, err := getQueryArgs(r)
+	if err != nil {
+		logger.InternalErrorPrint(w, err.Error())
+		return
+	}
+
+	result["url"] = fmt.Sprintf("%s://%s%s", getRequestScheme(r), r.Host, r.URL.RequestURI())
+	result["args"] = queryArgs
+	result["origin"] = getPeerIP(r)
+	result["headers"] = getHeadersMap(r.Header)
 
 	js, err := json.Marshal(result)
 	if err != nil {
@@ -263,78 +275,6 @@ func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func ImgHandler(w http.ResponseWriter, r *http.Request) {
-	acceptHeader := r.Header.Get("accept")
-
-	if acceptHeader == "" {
-		ImgPngHandler(w, r)
-		return
-	}
-
-	if strings.Contains(acceptHeader, "image/webp") {
-		ImgWebpHandler(w, r)
-		return
-	} else if strings.Contains(acceptHeader, "image/svg+xml") {
-		ImgSVGHandler(w, r)
-		return
-	} else if strings.Contains(acceptHeader, "image/jpeg") {
-		ImgJPEGHandler(w, r)
-		return
-	} else if strings.Contains(acceptHeader, "image/png") || strings.Contains(acceptHeader, "image/*") {
-		ImgPngHandler(w, r)
-		return
-	} else {
-		http.Error(w, "Invalid Accept", http.StatusNotAcceptable)
-		return
-	}
-
-}
-
-func ImgPngHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := Resource(filepath.Join("images", "pig_icon.png"))
-	if err != nil {
-		logger.InternalErrorPrint(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/png")
-	w.Write(data)
-}
-
-func ImgJPEGHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := Resource(filepath.Join("images", "jackal.jpg"))
-	if err != nil {
-		logger.InternalErrorPrint(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/jpeg")
-	w.Write(data)
-}
-
-func ImgWebpHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := Resource(filepath.Join("images", "wolf_1.webp"))
-	if err != nil {
-		logger.InternalErrorPrint(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/webp")
-	w.Write(data)
-}
-
-func ImgSVGHandler(w http.ResponseWriter, r *http.Request) {
-	data, err := Resource(filepath.Join("images", "svg_logo.svg"))
-	if err != nil {
-		logger.InternalErrorPrint(w, err)
-		return
-	}
-
-	w.Header().Set("Content-Type", "image/svg+xml")
-	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(data)))
-	w.Write(data)
-}
-
 func BasicAuthHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	if vars == nil {
@@ -361,6 +301,30 @@ func BasicAuthHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(js))
 }
 
+func redirectToHandler(w http.ResponseWriter, r *http.Request, url string) {
+	w.Header().Set("Location", url)
+	w.WriteHeader(http.StatusFound)
+}
+
+func RedirectToGetHandler(w http.ResponseWriter, r *http.Request) {
+	url := mux.Vars(r)["url"]
+	redirectToHandler(w, r, url)
+	return
+}
+
+func RedirectToFormHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	data := r.Form
+	urls, exist := data["url"]
+	if !exist {
+		GetHandler(w, r)
+		return
+	}
+	url := urls[0]
+	redirectToHandler(w, r, url)
+	return
+}
+
 /*
  * ====================================
  * WebApp Init
@@ -369,27 +333,38 @@ func BasicAuthHandler(w http.ResponseWriter, r *http.Request) {
 
 func GetMux() *mux.Router {
 	var router = mux.NewRouter()
-	var normalRouter = router.NewRoute().Subrouter()
+	var apiRouter = router.NewRoute().Subrouter()
+	var imgRouter = router.NewRoute().Subrouter()
 
 	// 注册中间件
-	registerMiddleware(normalRouter)
+	registerMiddleware(apiRouter)
 
 	// 注册API接口
-	normalRouter.HandleFunc("/legacy", IndexHandler)
-	normalRouter.HandleFunc("/ip", IPHandler)
-	normalRouter.HandleFunc("/uuid", UUIDHandler)
-	normalRouter.HandleFunc("/user-agent", UserAgentHandler)
-	normalRouter.HandleFunc("/headers", HeadersHandler)
-	normalRouter.HandleFunc("/get", GetHandler)
-	normalRouter.HandleFunc("/image", ImgHandler)
-	normalRouter.HandleFunc("/image/png", ImgPngHandler)
-	normalRouter.HandleFunc("/image/jpeg", ImgJPEGHandler)
-	normalRouter.HandleFunc("/image/webp", ImgWebpHandler)
-	normalRouter.HandleFunc("/image/svg", ImgSVGHandler)
-	normalRouter.HandleFunc("/base64/{value}", Base64Handler)
-	normalRouter.HandleFunc("/bytes/{n}", BytesHandler)
-	normalRouter.HandleFunc("/stream-bytes/{n}", StreamBytesHandler)
-	normalRouter.HandleFunc("/basic-auth/{user}/{passwd}", BasicAuthHandler)
+	apiRouter.HandleFunc("/legacy", IndexHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/ip", IPHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/uuid", UUIDHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/user-agent", UserAgentHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/headers", HeadersHandler).Methods(http.MethodGet, http.MethodHead)
+
+	apiRouter.HandleFunc("/get", GetHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/delete", DeleteHandler).Methods(http.MethodDelete)
+
+	apiRouter.HandleFunc("/base64/{value}", Base64Handler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/bytes/{n}", BytesHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/stream-bytes/{n}", StreamBytesHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/basic-auth/{user}/{passwd}", BasicAuthHandler).Methods(http.MethodGet, http.MethodHead)
+
+	// Redirects
+	apiRouter.HandleFunc("/redirect-to", RedirectToGetHandler).Methods(http.MethodGet, http.MethodHead).Queries("url", "{url:.+}")
+	apiRouter.HandleFunc("/redirect-to", RedirectToFormHandler).Methods(http.MethodPut, http.MethodPatch, http.MethodPost)
+
+	// Images
+	imgRouter.HandleFunc("/image", ImgHandler).Methods(http.MethodGet, http.MethodHead)
+	imgRouter.HandleFunc("/image/png", ImgPngHandler).Methods(http.MethodGet, http.MethodHead)
+	imgRouter.HandleFunc("/image/jpeg", ImgJPEGHandler).Methods(http.MethodGet, http.MethodHead)
+	imgRouter.HandleFunc("/image/webp", ImgWebpHandler).Methods(http.MethodGet, http.MethodHead)
+	imgRouter.HandleFunc("/image/svg", ImgSVGHandler).Methods(http.MethodGet, http.MethodHead)
+	imgRouter.HandleFunc("/image/gif", ImgGIFHandler).Methods(http.MethodGet, http.MethodHead)
 
 	// 注册静态文件
 	router.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
@@ -403,45 +378,4 @@ func registerMiddleware(router *mux.Router) {
 	//awm := middlewares.NewAuthMiddleware()
 	//router.Use(awm.Middleware)
 	router.Use(middlewares.JSONMiddleware)
-}
-
-func main() {
-	var router = GetMux()
-	handler := handlers.LoggingHandler(os.Stdout, router)
-
-	var wait time.Duration
-	flag.DurationVar(&wait, "shutdownTime", 15*time.Second, "服务器被关闭时的等待时间")
-	flag.Parse()
-
-	srv := &http.Server{
-		Addr:         "localhost:8080",
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
-		IdleTimeout:  30 * time.Second,
-		Handler:      handler,
-	}
-
-	c := make(chan os.Signal)
-	go func() {
-		logger.Println("Start server on", srv.Addr)
-		if err := srv.ListenAndServe(); err != nil {
-			if err == http.ErrServerClosed {
-				logger.Println("Graceful shutdown the server")
-				c <- os.Interrupt
-			} else {
-				logger.Fatalln(err)
-			}
-		}
-	}()
-
-	signal.Notify(c, os.Interrupt)
-	<-c
-
-	ctx, cancel := context.WithTimeout(context.Background(), wait)
-	defer cancel()
-
-	srv.Shutdown(ctx)
-	<-c
-
-	os.Exit(0)
 }

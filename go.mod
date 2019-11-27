@@ -1,4 +1,4 @@
-module github.com/bwangelme/httpbin
+module github.com/bwangelme/go-httpbin
 
 require (
 	github.com/google/uuid v1.0.0
