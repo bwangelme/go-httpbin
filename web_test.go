@@ -1,4 +1,4 @@
-package main
+package httpbin_test
 
 import (
 	"fmt"
@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/bwangelme/go-httpbin"
 	"github.com/gorilla/mux"
 )
 
@@ -18,7 +19,7 @@ func TestIPHandler(t *testing.T) {
 	req.RemoteAddr = "127.0.0.1"
 
 	record := httptest.NewRecorder()
-	handler := http.HandlerFunc(IPHandler)
+	handler := http.HandlerFunc(httpbin.IPHandler)
 	handler.ServeHTTP(record, req)
 
 	if status := record.Code; status != http.StatusOK {
@@ -45,7 +46,7 @@ func TestBase64Handler(t *testing.T) {
 	record := httptest.NewRecorder()
 
 	router := mux.NewRouter()
-	router.HandleFunc("/base64/{value}", Base64Handler)
+	router.HandleFunc("/base64/{value}", httpbin.Base64Handler)
 	router.ServeHTTP(record, req)
 
 	if status := record.Code; status != http.StatusOK {

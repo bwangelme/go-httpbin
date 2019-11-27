@@ -18,3 +18,147 @@ paths:
       responses:
         "200":
           description: The request parameters
+  /delete:
+    delete:
+      summary: The request's DELETE parameters.
+      tags:
+        - HTTP Methods
+      responses:
+        "200":
+          description: The request's DELETE parameters.
+  /image:
+    get:
+      produces:
+        - image/webp
+        - image/svg+xml
+        - image/jpeg
+        - image/png
+        - image/gif
+        - image/*
+      responses:
+        '200':
+          description: An image.
+      summary: Returns a simple image of the type suggest by the Accept header.
+      tags:
+        - Images
+  /image/jpeg:
+    get:
+      produces:
+        - image/jpeg
+      responses:
+        '200':
+          description: A JPEG image.
+      summary: Returns a simple JPEG image.
+      tags:
+        - Images
+  /image/png:
+    get:
+      produces:
+        - image/png
+      responses:
+        '200':
+          description: A PNG image.
+      summary: Returns a simple PNG image.
+      tags:
+        - Images
+  /image/svg:
+    get:
+      produces:
+        - image/svg+xml
+      responses:
+        '200':
+          description: An SVG image.
+      summary: Returns a simple SVG image.
+      tags:
+        - Images
+  /image/webp:
+    get:
+      produces:
+        - image/webp
+      responses:
+        '200':
+          description: A WEBP image.
+      summary: Returns a simple WEBP image.
+      tags:
+        - Images
+  /redirect-to:
+    delete:
+      produces:
+        - text/html
+      responses:
+        '404':
+          description: Redirect to donn't support delete, because it does not has parameter url.
+      summary: 404 Not Found
+      tags:
+        - Redirects
+    get:
+      parameters:
+        - in: query
+          name: url
+          required: true
+          type: string
+        - in: query
+          name: status_code
+          type: int
+      produces:
+        - text/html
+      responses:
+        '302':
+          description: A redirection.
+      summary: 302/3XX Redirects to the given URL.
+      tags:
+        - Redirects
+    post:
+      parameters:
+        - in: formData
+          name: url
+          required: true
+          type: string
+        - in: formData
+          name: status_code
+          required: false
+          type: int
+      produces:
+        - text/html
+      responses:
+        '302':
+          description: A redirection.
+      summary: 302/3XX Redirects to the given URL.
+      tags:
+        - Redirects
+    patch:
+      parameters:
+        - in: formData
+          name: url
+          required: true
+          type: string
+        - in: formData
+          name: status_code
+          required: false
+          type: int
+      produces:
+        - text/html
+      responses:
+        '302':
+          description: A redirection.
+      summary: 302/3XX Redirects to the given URL.
+      tags:
+        - Redirects
+    put:
+      parameters:
+        - in: formData
+          name: url
+          required: true
+          type: string
+        - in: formData
+          name: status_code
+          required: false
+          type: int
+      produces:
+        - text/html
+      responses:
+        '302':
+          description: A redirection.
+      summary: 302/3XX Redirects to the given URL.
+      tags:
+        - Redirects

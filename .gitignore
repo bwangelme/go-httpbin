@@ -19,5 +19,5 @@
 /vendor/
 /Godeps/
 
-httpbin
 tmp.go
+gohttpbin
