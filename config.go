@@ -1,4 +1,4 @@
-package main
+package httpbin
 
 type UrlItem struct {
 	Method string

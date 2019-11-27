@@ -1,4 +1,4 @@
-package main
+package httpbin
 
 /*
  * Helper Func
@@ -8,11 +8,12 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 )
 
-func checkBasicAuth(r *http.Request, user string, passwd string) bool{
+func checkBasicAuth(r *http.Request, user string, passwd string) bool {
 	User, Passwd, ok := r.BasicAuth()
 	fmt.Println(User, Passwd, ok)
 	if !ok {
@@ -75,4 +76,18 @@ func Resource(filename string) (data []byte, err error) {
 			}
 		}
 	}
+}
+
+func getQueryArgs(r *http.Request) (map[string]string, error) {
+	queryArgs := make(map[string]string)
+	values, err := url.ParseQuery(r.URL.RawQuery)
+	if err != nil {
+		return queryArgs, err
+	}
+
+	for k, _ := range values {
+		queryArgs[k] = values.Get(k)
+	}
+
+	return queryArgs, nil
 }

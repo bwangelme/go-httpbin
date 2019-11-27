@@ -1,10 +1,12 @@
-package main
+package httpbin_test
 
 import (
 	"io/ioutil"
 	"log"
 	"math/rand"
 	"testing"
+
+	"github.com/bwangelme/go-httpbin"
 )
 
 func TestResource(t *testing.T) {
@@ -21,7 +23,7 @@ func TestResource(t *testing.T) {
 	fd.Write(originData)
 	fd.Close()
 
-	data, err := Resource(fd.Name())
+	data, err := httpbin.Resource(fd.Name())
 	if err != nil {
 		log.Fatalln(err)
 	}

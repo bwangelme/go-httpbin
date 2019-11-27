@@ -1,2 +1,2 @@
 bin:
-	go build -o httpbin .
+	go build -o gohttpbin cmd/httpbin/main.go
