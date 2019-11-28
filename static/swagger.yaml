@@ -26,6 +26,36 @@ paths:
       responses:
         "200":
           description: The request's DELETE parameters.
+  /patch:
+    patch:
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: The request's PATCH parameters.
+      summary: The request's PATCH parameters.
+      tags:
+        - HTTP Methods
+  /post:
+    post:
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: The request's POST parameters.
+      summary: The request's POST parameters.
+      tags:
+        - HTTP Methods
+  /put:
+    put:
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: The request's PUT parameters.
+      summary: The request's PUT parameters.
+      tags:
+        - HTTP Methods
   /image:
     get:
       produces:
@@ -196,3 +226,56 @@ paths:
       summary: Returns the incoming request's User-Agent Header
       tags:
         - Request Inspection
+  /base64/{value}:
+    get:
+      parameters:
+        - default: TG92ZSBHb2xhbmcK
+          in: path
+          name: value
+          type: string
+      produces:
+        - text/html
+      responses:
+        '200':
+          description: Decoded base64 content.
+      summary: Decodes base64url-encoded string.
+      tags:
+        - Dynamic data
+  /uuid:
+    get:
+      produces:
+        - application/json
+      responses:
+        '200':
+          description: A UUID4.
+      summary: Return a UUID4.
+      tags:
+        - Dynamic data
+  '/bytes/{n}':
+    get:
+      parameters:
+        - in: path
+          name: 'n'
+          type: int
+      produces:
+        - application/octet-stream
+      responses:
+        '200':
+          description: Bytes.
+      summary: Returns n random bytes generated with given seed
+      tags:
+        - Dynamic data
+  /stream-bytes/{n}:
+    get:
+      parameters:
+        - in: path
+          name: 'n'
+          type: int
+      produces:
+        - application/octet-stream
+      responses:
+        '200':
+          description: Bytes.
+      summary: 'Streams n random bytes generated with given seed, at given chunk size per packet.'
+      tags:
+        - Dynamic data

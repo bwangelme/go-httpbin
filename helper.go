@@ -5,12 +5,16 @@ package httpbin
  */
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+
+	"github.com/bwangelme/go-httpbin/e"
+	"github.com/pkg/errors"
 )
 
 func checkBasicAuth(r *http.Request, user string, passwd string) bool {
@@ -90,4 +94,23 @@ func getQueryArgs(r *http.Request) (map[string]string, error) {
 	}
 
 	return queryArgs, nil
+}
+
+func rawWriteJSON(w io.Writer, v interface{}) error {
+	encoder := json.NewEncoder(w)
+	encoder.SetIndent("", "  ")
+	return errors.Wrap(encoder.Encode(v), "failed to encode JSON")
+}
+
+func writeErrorJSON(w http.ResponseWriter, err error) {
+	w.WriteHeader(http.StatusInternalServerError)
+	_ = rawWriteJSON(w, e.ErrorResponse{
+		Message: err.Error(),
+	})
+}
+
+func writeJSON(w http.ResponseWriter, v interface{}) {
+	if err := rawWriteJSON(w, v); err != nil {
+		writeErrorJSON(w, errors.Wrap(err, "failed to write json"))
+	}
 }

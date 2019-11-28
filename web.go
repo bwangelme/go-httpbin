@@ -15,6 +15,7 @@ import (
 	"github.com/bwangelme/go-httpbin/middlewares"
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -63,17 +64,9 @@ func IndexHandler(w http.ResponseWriter, r *http.Request) {
 
 func IPHandler(w http.ResponseWriter, r *http.Request) {
 	ip := getPeerIP(r)
-
-	js, err := json.Marshal(struct {
-		IP string
-	}{
-		IP: ip,
-	})
-	if err != nil {
-		logger.InternalErrorPrint(w, err.Error())
-		return
-	}
-	w.Write(js)
+	res := make(map[string]interface{})
+	res["ip"] = ip
+	writeJSON(w, res)
 }
 
 func Base64Handler(w http.ResponseWriter, r *http.Request) {
@@ -94,44 +87,21 @@ func Base64Handler(w http.ResponseWriter, r *http.Request) {
 
 func UUIDHandler(w http.ResponseWriter, r *http.Request) {
 	uuidVal := uuid.New()
+	res := make(map[string]interface{})
+	res["uuid"] = uuidVal.String()
 
-	js, err := json.Marshal(struct {
-		UUID string
-	}{
-		UUID: uuidVal.String(),
-	})
-	if err != nil {
-		logger.InternalErrorPrint(w, err.Error())
-		return
-	}
-
-	fmt.Fprintf(w, string(js))
+	writeJSON(w, res)
 }
 
 func UserAgentHandler(w http.ResponseWriter, r *http.Request) {
-	js, err := json.Marshal(struct {
-		UserAgent string `json:"user-agent"`
-	}{
-		UserAgent: r.UserAgent(),
-	})
-	if err != nil {
-		logger.InternalErrorPrint(w, err.Error())
-		return
-	}
-
-	fmt.Fprintf(w, string(js))
+	res := make(map[string]interface{})
+	res["user-agent"] = r.UserAgent()
+	writeJSON(w, res)
 }
 
 func HeadersHandler(w http.ResponseWriter, r *http.Request) {
 	headers := getHeadersMap(r.Header)
-
-	js, err := json.Marshal(headers)
-	if err != nil {
-		logger.InternalErrorPrint(w, err.Error())
-		return
-	}
-
-	fmt.Fprintf(w, string(js))
+	writeJSON(w, headers)
 }
 
 func GetHandler(w http.ResponseWriter, r *http.Request) {
@@ -148,14 +118,7 @@ func GetHandler(w http.ResponseWriter, r *http.Request) {
 	result["headers"] = getHeadersMap(r.Header)
 	result["args"] = queryArgs
 
-	// TODO 中间件统一写返回值的代码
-	js, err := json.Marshal(result)
-	if err != nil {
-		logger.InternalErrorPrint(w, err.Error())
-		return
-	}
-
-	fmt.Fprintf(w, string(js))
+	writeJSON(w, result)
 }
 
 func DeleteHandler(w http.ResponseWriter, r *http.Request) {
@@ -171,13 +134,25 @@ func DeleteHandler(w http.ResponseWriter, r *http.Request) {
 	result["origin"] = getPeerIP(r)
 	result["headers"] = getHeadersMap(r.Header)
 
-	js, err := json.Marshal(result)
+	writeJSON(w, result)
+}
+
+func PostHandler(w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	result := make(map[string]interface{})
+	queryArgs, err := getQueryArgs(r)
 	if err != nil {
 		logger.InternalErrorPrint(w, err.Error())
 		return
 	}
 
-	fmt.Fprintf(w, string(js))
+	result["url"] = fmt.Sprintf("%s://%s%s", getRequestScheme(r), r.Host, r.URL.RequestURI())
+	result["args"] = queryArgs
+	result["origin"] = getPeerIP(r)
+	result["headers"] = getHeadersMap(r.Header)
+	result["data"] = r.PostForm
+
+	writeJSON(w, result)
 }
 
 func BytesHandler(w http.ResponseWriter, r *http.Request) {
@@ -230,7 +205,9 @@ func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
 	if chunkSizeRaw != "" {
 		chunkSize, err := strconv.ParseInt(chunkSizeRaw, 10, 0)
 		if err != nil {
-			logger.Printf("INVALID chunk size %s: %s", r.FormValue("chunk-size"), err)
+			msg := fmt.Sprintf("INVALID chunk size %s", r.FormValue("chunk-size"))
+			writeErrorJSON(w, errors.Wrap(err, msg))
+			return
 		} else if chunkSize > 10*1024 {
 			chunkSize = 10 * 1024
 		}
@@ -238,6 +215,7 @@ func StreamBytesHandler(w http.ResponseWriter, r *http.Request) {
 
 	n, err := strconv.ParseInt(vars["n"], 10, 64)
 	if err != nil {
+		// TODO 查看这里的报错
 		logger.Println("INVALID path component", vars["n"], err)
 		n = 100 * chunkSize
 	} else if n > 100*chunkSize {
@@ -357,21 +335,21 @@ func GetMux() *mux.Router {
 	var router = mux.NewRouter()
 	var apiRouter = router.NewRoute().Subrouter()
 	var imgRouter = router.NewRoute().Subrouter()
+	var normalRouter = router.NewRoute().Subrouter()
 
 	// 注册中间件
 	registerMiddleware(apiRouter)
 
 	// 注册API接口
 	apiRouter.HandleFunc("/legacy", IndexHandler).Methods(http.MethodGet, http.MethodHead)
-	apiRouter.HandleFunc("/uuid", UUIDHandler).Methods(http.MethodGet, http.MethodHead)
-	apiRouter.HandleFunc("/base64/{value}", Base64Handler).Methods(http.MethodGet, http.MethodHead)
-	apiRouter.HandleFunc("/bytes/{n}", BytesHandler).Methods(http.MethodGet, http.MethodHead)
-	apiRouter.HandleFunc("/stream-bytes/{n}", StreamBytesHandler).Methods(http.MethodGet, http.MethodHead)
 	apiRouter.HandleFunc("/basic-auth/{user}/{passwd}", BasicAuthHandler).Methods(http.MethodGet, http.MethodHead)
 
-	//TODO HTTP Methods
+	//HTTP Methods
 	apiRouter.HandleFunc("/delete", DeleteHandler).Methods(http.MethodDelete)
 	apiRouter.HandleFunc("/get", GetHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/post", PostHandler).Methods(http.MethodPost)
+	apiRouter.HandleFunc("/put", PostHandler).Methods(http.MethodPut)
+	apiRouter.HandleFunc("/patch", PostHandler).Methods(http.MethodPatch)
 
 	// Request Inspection
 	apiRouter.HandleFunc("/headers", HeadersHandler).Methods(http.MethodGet, http.MethodHead)
@@ -389,6 +367,12 @@ func GetMux() *mux.Router {
 	imgRouter.HandleFunc("/image/webp", ImgWebpHandler).Methods(http.MethodGet, http.MethodHead)
 	imgRouter.HandleFunc("/image/svg", ImgSVGHandler).Methods(http.MethodGet, http.MethodHead)
 	imgRouter.HandleFunc("/image/gif", ImgGIFHandler).Methods(http.MethodGet, http.MethodHead)
+
+	// Dynamic data
+	normalRouter.HandleFunc("/base64/{value}", Base64Handler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/uuid", UUIDHandler).Methods(http.MethodGet, http.MethodHead)
+	normalRouter.HandleFunc("/bytes/{n}", BytesHandler).Methods(http.MethodGet, http.MethodHead)
+	normalRouter.HandleFunc("/stream-bytes/{n}", StreamBytesHandler).Methods(http.MethodGet, http.MethodHead)
 
 	// 注册静态文件
 	router.PathPrefix("/static").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(STATIC_DIR))))
