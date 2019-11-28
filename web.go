@@ -301,18 +301,35 @@ func BasicAuthHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprint(w, string(js))
 }
 
-func redirectToHandler(w http.ResponseWriter, r *http.Request, url string) {
+func redirectToHandler(w http.ResponseWriter, r *http.Request, url string, statusCode int) {
 	w.Header().Set("Location", url)
-	w.WriteHeader(http.StatusFound)
+
+	if !(statusCode >= 300 && statusCode < 400) {
+		statusCode = http.StatusFound
+	}
+
+	w.WriteHeader(statusCode)
+
 }
 
 func RedirectToGetHandler(w http.ResponseWriter, r *http.Request) {
+	var statusCode int
 	url := mux.Vars(r)["url"]
-	redirectToHandler(w, r, url)
+	statusCodeStrs, ok := r.URL.Query()["status_code"]
+	if !ok {
+		statusCode = 0
+	} else {
+		// 由于 Atoi 出错时也是返回0，所以这里不用判断错误
+		statusCode, _ = strconv.Atoi(statusCodeStrs[0])
+	}
+
+	redirectToHandler(w, r, url, statusCode)
 	return
 }
 
 func RedirectToFormHandler(w http.ResponseWriter, r *http.Request) {
+	var statusCode int
+
 	r.ParseForm()
 	data := r.Form
 	urls, exist := data["url"]
@@ -321,7 +338,12 @@ func RedirectToFormHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	url := urls[0]
-	redirectToHandler(w, r, url)
+
+	statusCodeStrs, ok := data["status_code"]
+	if ok {
+		statusCode, _ = strconv.Atoi(statusCodeStrs[0])
+	}
+	redirectToHandler(w, r, url, statusCode)
 	return
 }
 
@@ -341,18 +363,20 @@ func GetMux() *mux.Router {
 
 	// 注册API接口
 	apiRouter.HandleFunc("/legacy", IndexHandler).Methods(http.MethodGet, http.MethodHead)
-	apiRouter.HandleFunc("/ip", IPHandler).Methods(http.MethodGet, http.MethodHead)
 	apiRouter.HandleFunc("/uuid", UUIDHandler).Methods(http.MethodGet, http.MethodHead)
-	apiRouter.HandleFunc("/user-agent", UserAgentHandler).Methods(http.MethodGet, http.MethodHead)
-	apiRouter.HandleFunc("/headers", HeadersHandler).Methods(http.MethodGet, http.MethodHead)
-
-	apiRouter.HandleFunc("/get", GetHandler).Methods(http.MethodGet, http.MethodHead)
-	apiRouter.HandleFunc("/delete", DeleteHandler).Methods(http.MethodDelete)
-
 	apiRouter.HandleFunc("/base64/{value}", Base64Handler).Methods(http.MethodGet, http.MethodHead)
 	apiRouter.HandleFunc("/bytes/{n}", BytesHandler).Methods(http.MethodGet, http.MethodHead)
 	apiRouter.HandleFunc("/stream-bytes/{n}", StreamBytesHandler).Methods(http.MethodGet, http.MethodHead)
 	apiRouter.HandleFunc("/basic-auth/{user}/{passwd}", BasicAuthHandler).Methods(http.MethodGet, http.MethodHead)
+
+	//TODO HTTP Methods
+	apiRouter.HandleFunc("/delete", DeleteHandler).Methods(http.MethodDelete)
+	apiRouter.HandleFunc("/get", GetHandler).Methods(http.MethodGet, http.MethodHead)
+
+	// Request Inspection
+	apiRouter.HandleFunc("/headers", HeadersHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/ip", IPHandler).Methods(http.MethodGet, http.MethodHead)
+	apiRouter.HandleFunc("/user-agent", UserAgentHandler).Methods(http.MethodGet, http.MethodHead)
 
 	// Redirects
 	apiRouter.HandleFunc("/redirect-to", RedirectToGetHandler).Methods(http.MethodGet, http.MethodHead).Queries("url", "{url:.+}")

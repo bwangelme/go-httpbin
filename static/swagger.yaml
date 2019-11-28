@@ -61,6 +61,16 @@ paths:
       summary: Returns a simple PNG image.
       tags:
         - Images
+  /image/gif:
+    get:
+      produces:
+        - image/gif
+      responses:
+        '200':
+          description: An GIF image.
+      summary: Returns a simple GIF image.
+      tags:
+        - Images
   /image/svg:
     get:
       produces:
@@ -162,3 +172,27 @@ paths:
       summary: 302/3XX Redirects to the given URL.
       tags:
         - Redirects
+  /headers:
+    get:
+      responses:
+        '200':
+          description: The request's headers
+      summary: Return the incoming request's HTTP Headers
+      tags:
+        - Request Inspection
+  /ip:
+    get:
+      responses:
+        '200':
+          description: The request's IP Address
+      summary: Returns the incoming request's IP Address
+      tags:
+        - Request Inspection
+  /user-agent:
+    get:
+      responses:
+        '200':
+          description: The request's User-Agent Header
+      summary: Returns the incoming request's User-Agent Header
+      tags:
+        - Request Inspection
